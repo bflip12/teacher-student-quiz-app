@@ -1,0 +1,234 @@
+<!--"StAuth10065: I Bobby Filippopoulos, 000338236 certify that this material is my original work. No other person's work has been used without due acknowledgement. I have not made my work available to anyone else."-->
+<!doctype html>
+<html>
+  <head>
+    <title>Classroom Collaboration (teacher)</title>
+    <style>
+    .newLine
+    {
+        display: block;
+    }
+    </style>
+  </head>
+  <body>
+    <h1>Classroom Collaboration (teacher)</h1>
+    <div>Timer:<span id="timerSpan">0</span><div>
+
+    <form id="questions" action="teacher.html" method="post">
+      <input type="radio" id="shortAnswerChoice"
+       name="questionType" value="shortAnswer" checked="checked">
+      <label for="shortAnswerChoice">Short Answer</label>
+
+      <input type="radio" id="trueOrFalseChoice"
+       name="questionType" value="trueOrFalse">
+      <label for="trueOrFalseChoice">True or False</label>
+      <br />
+
+      <label for="question">Question:</label> <input type="text" id="question"> <br />
+      <label for="answer" id="answerLabel" class="newline">Answer:</label> <input type="answer" id="answer">
+
+      <input type="radio" id="trueAnswerChoice"
+       name="trueOrFalseAnswer" value="true" checked="checked">
+      <label class="newline" for="trueOrFalseChoice" id="trueAnswerLabel">True</label>
+
+      <input type="radio" id="falseAnswerChoice"
+       name="trueOrFalseAnswer" value="false">
+      <label class="newline" for="trueOrFalseChoice" id="falseAnswerLabel">False</label>
+      <br />
+      <div> Timer(10-90 Seconds): <input type="range" id="timeRange" name="timeRange" min="10" max="90" step="5"></div> <br />
+      <input type="submit">
+    </form>
+    <button type="button" id="newQuestionButton" name="newQuestionButton">New Question</button>
+    <div id="stats" class="">
+      <p>Total number of answers received: <span id="totalAnswersRecievedSpan">0</span</p>
+      <p>Total number of correct answers received: <span id="totalCorrectAnswersRecievedSpan">0</span</p>
+      <p>Percentage of answers that are correct: %<span id="percentageCorrectSpan">0</span</p>
+      <p>A list of names of all students that answered the question correctly: <span id="listOfNamesCorrectSpan"></span</p>
+      <p>A list of names of all students that answered the question incorrectly: <span id="listOfNamesIncorrectSpan"></span</p>
+      <p>In the case of a short-answer question, a list of all the incorrect answers: <span id="shortAnswerCorrectAnswersSpan"></span</p>
+    </div>
+
+  <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+  <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+  <script>
+  $(document).ready(function(){
+    function hideTrueOrFalse() {
+      $('#trueAnswerChoice').hide();
+      $('#trueAnswerLabel').hide();
+      $('#falseAnswerChoice').hide();
+      $('#falseAnswerLabel').hide();
+    }
+
+    function showTrueOrFalse() {
+      $('#trueAnswerChoice').show();
+      $('#trueAnswerLabel').show();
+      $('#falseAnswerChoice').show();
+      $('#falseAnswerLabel').show();
+    }
+
+    function hideShortAnswer() {
+      $('#answer').hide();
+      $('#answerLabel').hide();
+    }
+
+    function showShortAnswer() {
+      $('#answer').show();
+      $('#answerLabel').show();
+    }
+
+    function hideQuestionInterface() {
+      $('#questions').hide();
+    }
+
+    function showStatsInterface() {
+      $('#stats').show();
+    }
+
+    function hideStatsInterface() {
+      $('#stats').hide();
+    }
+
+    function showQuestionInterface() {
+      $('#questions').show();
+      if ($('#shortAnswerChoice').is(':checked')) {
+        hideTrueOrFalse();
+      }
+      else if ($('#trueOrFalseChoice').is(':checked')) {
+        hideShortAnswer();
+      }
+      newQuestionButton.disabled = true;
+    }
+
+    function determineAnswer() {
+      answer = $("#answer").val();
+      if ($('#trueOrFalseChoice').is(':checked')) {
+        answer = $("input[name='trueOrFalseAnswer']:checked").val();
+      }
+      return answer;
+    }
+
+    function updateAnswerData(){
+      $('#totalAnswersRecievedSpan').html(answerData.totalNumberOfAnswers);
+      $('#totalCorrectAnswersRecievedSpan').html(answerData.totalNumberOfCorrectAnswers);
+      $('#percentageCorrectSpan').html(answerData.percentageOfCorrectAnswers);
+      $('#listOfNamesCorrectSpan').html(answerData.listOfCorrectAnswerNames);
+      $('#listOfNamesIncorrectSpan').html(answerData.listOfIncorrectAnswerNames);
+      $('#shortAnswerCorrectAnswersSpan').html(answerData.listOfIncorrectAnswers);
+    }
+
+    function timer() {
+      count=count-1;
+      if (count <= 0) {
+         clearInterval(counter);
+         console.log('disable button')
+         newQuestionButton.disabled = false;
+         timerObj.innerHTML=0;
+         //timer ended
+         return;
+      }
+      console.log(count)
+      timerObj.innerHTML=count;
+    }
+
+    var count = 0;
+    var counter;
+    var newQuestionButton = document.getElementById("newQuestionButton");
+    var timerObj = document.getElementById("timerSpan");
+    //
+    // var totalNumberOfAnswersObj = document.getElementById("totalAnswersRecievedSpan");
+    // var totalNumberOfCorrectAnswersObj = document.getElementById("totalCorrectAnswersRecievedSpan");
+    // var percentageOfCorrectAnswersObj = document.getElementById("percentageCorrectSpan");
+    // var listOfCorrectAnswerNamesObj = document.getElementById("listOfNamesCorrectSpan");
+    // var listOfIncorrectAnswerNamesObj = document.getElementById("listOfNamesIncorrectSpan");
+    // var listOfIncorrectAnswers = document.getElementById("shortAnswerCorrectAnswersSpan");
+
+    var questionType = "shortAnswer";
+    var answer = "";
+
+    var answerData = {
+      "totalNumberOfAnswers": 0,
+      "totalNumberOfCorrectAnswers": 0,
+      "percentageOfCorrectAnswers": 0,
+      "listOfCorrectAnswerNames" : [],
+      "listOfIncorrectAnswerNames": [],
+      "listOfIncorrectAnswers": [],
+    };
+    // var totalNumberOfAnswers = 0;
+    // var totalNumberOfCorrectAnswers = 0;
+    // var percentageOfCorrectAnswers = 0;
+    // var listOfCorrectAnswerNames;
+    // var listOfIncorrectAnswerNames;
+    // var listOfIncorrectAnswers;
+
+    hideStatsInterface();
+    hideTrueOrFalse();
+    newQuestionButton.disabled = true;
+
+    $('#shortAnswerChoice').click(function() {
+      if($('#shortAnswerChoice').is(':checked')) {
+        console.log('shortAnswerChecked is checked');
+        showShortAnswer();
+        hideTrueOrFalse();
+        questionType = "shortAnswer";
+      }
+    });
+
+    $('#trueOrFalseChoice').click(function() {
+      if($('#trueOrFalseChoice').is(':checked')) {
+        console.log('trueOrFalseChoice is checked');
+        hideShortAnswer();
+        showTrueOrFalse();
+        questionType = "multipleChoice";
+      }
+    });
+
+    $('#newQuestionButton').click(function() {
+      console.log('clicked');
+      hideStatsInterface();
+      showQuestionInterface();
+    });
+
+    // Make the connection...
+    var socket = io();
+
+    // If user clicks submit, emit the submitquestion message...
+    $('#questions').submit(function() {
+      count=$("#timeRange").val();
+      count++;
+      answer = determineAnswer();
+      socket.emit('submitquestion',
+                  {question: $("#question").val(),
+                   answer: answer,
+                   type: questionType,
+                   timerCount: count,
+                  });
+      counter=setInterval(timer, 1000); //1000 will  run it every 1 second
+      hideQuestionInterface();
+      showStatsInterface();
+      return false;
+    });
+
+    // If a result is received, show the user...
+    socket.on('resultsForTeacher', function(msg) {
+      answerData.totalNumberOfAnswers++;
+      if (msg.correct) {
+        answerData.totalNumberOfCorrectAnswers++;
+        $("#result").html(msg.answer + " is Correct!");
+        answerData['listOfCorrectAnswerNames'].push(msg.name + ", ")
+      }
+      else {
+        answerData['listOfIncorrectAnswerNames'].push(msg.name+ ", ")
+        if(questionType == "shortAnswer") {
+          answerData['listOfIncorrectAnswers'].push(msg.answer + ", ")
+        }
+        $("#result").html("Incorrect!");
+        $("#answertext").html("Correct answer: " + msg.answer);
+      }
+      answerData.percentageOfCorrectAnswers = ((answerData.totalNumberOfCorrectAnswers/answerData.totalNumberOfAnswers)*100);
+      updateAnswerData();
+    });
+
+  });
+  </script>
+  </body>
+</html>

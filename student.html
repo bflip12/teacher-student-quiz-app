@@ -1,0 +1,185 @@
+<!--"StAuth10065: I Bobby Filippopoulos, 000338236 certify that this material is my original work. No other person's work has been used without due acknowledgement. I have not made my work available to anyone else."-->
+<!doctype html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+    .questionText
+    {
+        font-size: 20px;
+    }
+    </style>
+  </head>
+  <body>
+    <h1>Classroom Collaboration (student)</h1>
+    <h2 id="waitingText">Waiting for a question...</h2>
+    <div id="timerSection"class="">
+      Timer:<span id="timerSpan">0</span>
+    </div>
+    <form id="answers" action="student.html" method="post">
+      <div id="nameInput">
+        <label for="studentName">Name:</label> <input type="text" id="studentName"> <br />
+      </div>
+
+      <br />
+
+      <div id="questionSection"class="questionText">Question: <span id="question"></span></div>
+      <div id="shortAnswerSection"><label for="answer">Answer:</label> <input type="text" id="answer"><br /></div>
+      <div id="multipleChoiceSection">
+        <input type="radio" id="trueAnswerChoice"
+         name="trueOrFalseAnswer" value="true" checked="checked">
+        <label class="newline" for="trueOrFalseAnswer" id="trueAnswerLabel">True</label>
+
+        <input type="radio" id="falseAnswerChoice"
+         name="trueOrFalseAnswer" value="false">
+        <label class="newline" for="trueOrFalseAnswer" id="falseAnswerLabel">False</label>
+      </div>
+      <input id="submitButton" type="submit">
+    </form>
+    <div id="result"></div>
+    <div id="answertext"></div>
+  <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+  <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+  <script>
+    function hideSubmit() {
+      $('#submitButton').hide();
+    }
+
+    function showSubmit() {
+      $('#submitButton').show();
+    }
+
+    function hideQuestion() {
+      $('#questionSection').hide();
+    }
+
+    function showQuestion() {
+      $('#questionSection').show();
+    }
+
+    function hideWaitingText() {
+      $('#waitingText').hide();
+    }
+
+    function showWaitingText() {
+      $('#waitingText').show();
+    }
+
+    function hideTimer() {
+      $('#timerSection').hide();
+    }
+
+    function showTimer() {
+      $('#timerSection').show();
+    }
+
+    function hideShortAnswer() {
+      $('#shortAnswerSection').hide();
+    }
+
+    function showShortAnswer() {
+      $('#shortAnswerSection').show();
+    }
+    function hideMultipleChoice() {
+      $('#multipleChoiceSection').hide();
+      trueAnswerChoice.disabled = true;
+      falseAnswerChoice.disabled = true;
+    }
+
+    function showMultipleChoice() {
+      $('#multipleChoiceSection').show();
+      trueAnswerChoice.disabled = false;
+      falseAnswerChoice.disabled = false;
+    }
+
+    function determineAnswer() {
+      if (trueAnswerChoice.disabled == false && falseAnswerChoice.disabled == false) {
+        tempAnswer = $("input[name='trueOrFalseAnswer']:checked").val();
+      }
+      else {
+        tempAnswer = $("#answer").val();
+      }
+      console.log(tempAnswer);
+      console.log(falseAnswerChoice.disabled + " " + trueAnswerChoice.disabled);
+      return tempAnswer;
+    }
+
+    function timer() {
+      submitButton.disabled = false;
+      count=count-1;
+      if (count <= 0) {
+         clearInterval(counter);
+         console.log('disable button')
+         submitButton.disabled = true;
+         timerObj.innerHTML=0;
+         showWaitingText();
+         hideShortAnswer();
+         hideMultipleChoice();
+
+         //timer ended
+         return;
+      }
+      console.log(count)
+      timerObj.innerHTML=count;
+    }
+
+    // Make the connection...
+    var socket = io();
+    var count = 0;
+    var counter;
+    var answer;
+    var timerObj = document.getElementById("timerSpan");
+    var submitButton = document.getElementById("submitButton");
+    var trueAnswerChoice = document.getElementById("trueAnswerChoice");
+    var falseAnswerChoice = document.getElementById("falseAnswerChoice");
+
+    hideQuestion();
+    hideMultipleChoice();
+    hideShortAnswer();
+    hideSubmit();
+    hideTimer();
+
+    // If the user clicks the submit button, submit the answer...
+    $('#answers').submit(function() {
+      answer = determineAnswer();
+      name = $("#studentName").val();
+      console.log("answer: " + answer)
+      socket.emit('answerquestion', {answer: answer,
+       name: name,
+      });
+      return false;
+    });
+
+    // If a question is received, add it to the HTML page...
+    socket.on('deliverquestion', function(msg) {
+      console.log(msg);
+      hideWaitingText();
+      showQuestion();
+      showSubmit();
+      $('#question').html(msg.question);
+      if(msg.type == "shortAnswer") {
+        showShortAnswer();
+      }
+      else if (msg.type == "multipleChoice") {
+        showMultipleChoice();
+      }
+      showTimer();
+      count = msg.timerCount;
+      counter=setInterval(timer, 1000); //1000 will  run it every 1 second
+    });
+
+    // If a result is received, show the user...
+    socket.on('resultquestion', function(msg) {
+      console.log(msg);
+      if (msg.correct) {
+        $("#result").html(msg.answer + " is Correct!");
+      }
+      else {
+        $("#result").html("Incorrect!");
+        $("#answertext").html("Correct answer: " + msg.answer);
+      }
+    });
+
+  </script>
+  </body>
+</html>
